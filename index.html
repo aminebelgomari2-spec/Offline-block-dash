@@ -50,7 +50,7 @@
     <!-- Menu Principal -->
     <div id="start-menu" class="overlay">
         <h1>BLOCK DASH 3D</h1>
-        <p>Sautez, dashez et évitez les pièges mortels !<br>Mobile : Tactile | PC : Flèches/ZQSD + Espace / Shift</p>
+        <p>Sautez, dashez et évitez les pièges mortels !<br>Seules les piques et le vide éliminent.<br>Mobile : Tactile | PC : Flèches/ZQSD + Espace / Shift</p>
         <button class="btn-play" id="start-btn">JOUER</button>
     </div>
 
@@ -62,7 +62,7 @@
     </div>
 
     <script>
-        let engine, scene, player, playerMat;
+        let engine, scene, playerGroup, playerCollider;
         const ARENA_W = 12, ARENA_L = 26;
         let isPlaying = false, wave = 0, gameSpeed = 0.16;
         let pVelY = 0, gravity = -0.015, jumpForce = 0.32;
@@ -83,7 +83,7 @@
             const camera = new BABYLON.TargetCamera("camera", new BABYLON.Vector3(0, 11, -16), scene);
             camera.setTarget(new BABYLON.Vector3(0, 1, 3));
 
-            // Lumière
+            // Lumières
             const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
             light.intensity = 0.8;
 
@@ -105,34 +105,76 @@
             matLaser.diffuseColor = new BABYLON.Color3(1, 0, 0.2);
             matLaser.emissiveColor = new BABYLON.Color3(1, 0, 0.2);
 
-            // Arène / Sol
+            // Sol
             const floor = BABYLON.MeshBuilder.CreateBox("floor", { width: ARENA_W, height: 1, depth: ARENA_L }, scene);
             floor.position = new BABYLON.Vector3(0, -0.5, 0);
             floor.material = matFloor;
 
-            // Sol Mortel Laser
+            // Laser mortel en dessous
             const lava = BABYLON.MeshBuilder.CreatePlane("lava", { size: 60 }, scene);
             lava.position.y = -3;
             lava.rotation.x = Math.PI / 2;
             lava.material = matLaser;
 
-            // Joueur
-            player = BABYLON.MeshBuilder.CreateCapsule("player", { radius: 0.45, height: 1.3 }, scene);
-            playerMat = new BABYLON.StandardMaterial("pMat", scene);
-            playerMat.diffuseColor = new BABYLON.Color3(0, 0.9, 0.4);
-            player.material = playerMat;
+            // Modélisation du VRAI Personnage Stumble
+            createCharacter();
 
             resetPlayer();
 
-            // Boucle de rendu principal
             scene.onBeforeRenderObservable.add(gameLoop);
-
             engine.runRenderLoop(() => scene.render());
             window.addEventListener("resize", () => engine.resize());
         }
 
+        function createCharacter() {
+            playerGroup = new BABYLON.TransformNode("playerGroup", scene);
+
+            // Boîte de collision invisible du joueur
+            playerCollider = BABYLON.MeshBuilder.CreateBox("collider", { width: 0.8, height: 1.4, depth: 0.8 }, scene);
+            playerCollider.isVisible = false;
+            playerCollider.parent = playerGroup;
+
+            // Matériaux du bonhomme
+            const matSkin = new BABYLON.StandardMaterial("mSkin", scene); matSkin.diffuseColor = new BABYLON.Color3(1, 0.8, 0.6);
+            const matShirt = new BABYLON.StandardMaterial("mShirt", scene); matShirt.diffuseColor = new BABYLON.Color3(0, 0.6, 1);
+            const matPants = new BABYLON.StandardMaterial("mPants", scene); matPants.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+            const matHat = new BABYLON.StandardMaterial("mHat", scene); matHat.diffuseColor = new BABYLON.Color3(1, 0, 0.3);
+
+            // Corps
+            const body = BABYLON.MeshBuilder.CreateBox("body", { width: 0.6, height: 0.6, depth: 0.4 }, scene);
+            body.position.y = 0.6;
+            body.material = matShirt;
+            body.parent = playerGroup;
+
+            // Tête
+            const head = BABYLON.MeshBuilder.CreateSphere("head", { diameter: 0.45 }, scene);
+            head.position.y = 1.05;
+            head.material = matSkin;
+            head.parent = playerGroup;
+
+            // Casquette / Chapeau
+            const hat = BABYLON.MeshBuilder.CreateCylinder("hat", { diameter: 0.5, height: 0.1 }, scene);
+            hat.position.y = 1.28;
+            hat.material = matHat;
+            hat.parent = playerGroup;
+
+            // Jambes
+            const legL = BABYLON.MeshBuilder.CreateBox("legL", { width: 0.2, height: 0.4, depth: 0.2 }, scene);
+            legL.position.set(-0.15, 0.2, 0); legL.material = matPants; legL.parent = playerGroup;
+
+            const legR = BABYLON.MeshBuilder.CreateBox("legR", { width: 0.2, height: 0.4, depth: 0.2 }, scene);
+            legR.position.set(0.15, 0.2, 0); legR.material = matPants; legR.parent = playerGroup;
+
+            // Bras
+            const armL = BABYLON.MeshBuilder.CreateBox("armL", { width: 0.18, height: 0.45, depth: 0.18 }, scene);
+            armL.position.set(-0.4, 0.6, 0); armL.material = matShirt; armL.parent = playerGroup;
+
+            const armR = BABYLON.MeshBuilder.CreateBox("armR", { width: 0.18, height: 0.45, depth: 0.18 }, scene);
+            armR.position.set(0.4, 0.6, 0); armR.material = matShirt; armR.parent = playerGroup;
+        }
+
         function resetPlayer() {
-            player.position = new BABYLON.Vector3(0, 0.65, -7);
+            playerGroup.position = new BABYLON.Vector3(0, 0, -7);
             pVelY = 0;
             canDoubleJump = true;
             isDashing = false;
@@ -140,7 +182,7 @@
 
         function doJump() {
             if (!isPlaying) return;
-            if (player.position.y <= 0.66) {
+            if (playerGroup.position.y <= 0.01) {
                 pVelY = jumpForce;
                 canDoubleJump = true;
             } else if (canDoubleJump) {
@@ -153,7 +195,7 @@
         function doDash() {
             if (!isPlaying || isDashing) return;
             isDashing = true;
-            player.position.z += 2.2;
+            playerGroup.position.z += 2.2;
             setTimeout(() => { isDashing = false; }, 250);
         }
 
@@ -168,7 +210,7 @@
             const type = Math.floor(Math.random() * 4);
 
             if (type === 0) {
-                // Mur bas avec piques
+                // Mur bas classique qui repousse (NON FATAL) avec piques dorées au-dessus
                 const base = BABYLON.MeshBuilder.CreateBox("w", { width: ARENA_W, height: 1.2, depth: 1 }, scene);
                 base.position.y = 0.6;
                 base.material = matWall;
@@ -178,19 +220,18 @@
                     const spike = BABYLON.MeshBuilder.CreateCylinder("s", { diameterTop: 0, diameterBottom: 0.6, height: 1 }, scene);
                     spike.position.set(x, 1.7, 0);
                     spike.material = matSpike;
-                    spike.isFatal = true;
+                    spike.isFatal = true; // SEULES LES PIQUES TUENT
                     spike.parent = wallGroup;
                 }
             } 
             else if (type === 1) {
-                // Mur haut avec un passage (porte)
+                // Mur haut repoussant avec passage étroit
                 const holeX = (Math.random() * (ARENA_W - 4)) - (ARENA_W/2 - 2);
                 for(let x = -ARENA_W/2 + 0.5; x < ARENA_W/2; x += 1) {
                     if (Math.abs(x - holeX) > 1.4) {
                         const block = BABYLON.MeshBuilder.CreateBox("b", { width: 1, height: 4, depth: 1 }, scene);
                         block.position.set(x, 2, 0);
                         block.material = matWall;
-                        block.isFatal = true;
                         block.parent = wallGroup;
                     }
                 }
@@ -204,7 +245,7 @@
                 breakable.parent = wallGroup;
             }
             else if (type === 3) {
-                // Mur à double niveau décalé
+                // Mur à double niveau décalé repoussant
                 const left = BABYLON.MeshBuilder.CreateBox("l", { width: ARENA_W/2, height: 1.2, depth: 1 }, scene);
                 left.position.set(-ARENA_W/4, 0.6, 0);
                 left.material = matWall;
@@ -213,7 +254,6 @@
                 const right = BABYLON.MeshBuilder.CreateBox("r", { width: ARENA_W/2, height: 3.5, depth: 1 }, scene);
                 right.position.set(ARENA_W/4, 1.75, 0);
                 right.material = matWall;
-                right.isFatal = true;
                 right.parent = wallGroup;
             }
 
@@ -231,38 +271,40 @@
             if (keys['ArrowUp'] || keys['KeyW']) mz = 1;
             if (keys['ArrowDown'] || keys['KeyS']) mz = -1;
 
-            player.position.x += mx * 0.18;
-            player.position.z += mz * 0.18;
+            playerGroup.position.x += mx * 0.18;
+            playerGroup.position.z += mz * 0.18;
 
             const limitX = ARENA_W / 2 - 0.5;
-            player.position.x = Math.max(-limitX, Math.min(limitX, player.position.x));
+            playerGroup.position.x = Math.max(-limitX, Math.min(limitX, playerGroup.position.x));
 
-            player.position.y += pVelY;
+            playerGroup.position.y += pVelY;
             pVelY += gravity;
 
-            if (player.position.y <= 0.65) {
-                player.position.y = 0.65;
+            if (playerGroup.position.y <= 0) {
+                playerGroup.position.y = 0;
                 pVelY = 0;
             }
 
+            // Collisions
             for (let i = walls.length - 1; i >= 0; i--) {
                 const wallGroup = walls[i];
                 wallGroup.position.z -= gameSpeed;
 
                 const children = wallGroup.getChildMeshes();
                 for (let child of children) {
-                    if (player.intersectsMesh(child, false)) {
+                    if (playerCollider.intersectsMesh(child, false)) {
                         if (child.isFatal) {
-                            gameOver();
+                            gameOver(); // Mort uniquement sur piques
                             return;
                         } else if (child.isBreakable) {
                             if (isDashing) {
                                 child.dispose();
                             } else {
-                                player.position.z = wallGroup.position.z - 1.2;
+                                playerGroup.position.z = wallGroup.position.z - 1.2;
                             }
                         } else {
-                            player.position.z = wallGroup.position.z - 1.2;
+                            // Le mur rouge repousse le joueur vers l'arrière
+                            playerGroup.position.z = wallGroup.position.z - 1.2;
                         }
                     }
                 }
@@ -277,7 +319,8 @@
                 spawnWall();
             }
 
-            if (player.position.y < -1.5 || player.position.z < -ARENA_L / 2 - 0.5) {
+            // Élimination : Tomber dans le vide ou se faire pousser trop en arrière
+            if (playerGroup.position.y < -1.5 || playerGroup.position.z < -ARENA_L / 2 - 0.5) {
                 gameOver();
             }
         }
@@ -346,7 +389,6 @@
             document.getElementById('over-menu').classList.remove('hidden');
         }
 
-        // Événements d'attachement explicites sur les boutons
         window.addEventListener("load", () => {
             createScene();
             setupControls();
