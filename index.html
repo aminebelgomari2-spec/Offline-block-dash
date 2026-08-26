@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Block Dash Clone 3D</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Arial Black', sans-serif;
+            user-select: none;
+            background-color: #111;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* HUD & UI */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        #hud {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .counter-box {
+            background: rgba(0, 0, 0, 0.6);
+            border: 3px solid #fff;
+            border-radius: 12px;
+            padding: 10px 20px;
+            color: #fff;
+            font-size: 24px;
+            text-shadow: 2px 2px #000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        /* MENUS */
+        .menu-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto;
+            z-index: 10;
+        }
+
+        h1 {
+            color: #ffcc00;
+            font-size: 60px;
+            margin: 0 0 10px 0;
+            text-shadow: 4px 4px #ff0055, -2px -2px #000;
+            letter-spacing: 2px;
+        }
+
+        p {
+            color: #fff;
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            background: #00e676;
+            color: #fff;
+            border: none;
+            padding: 15px 50px;
+            font-size: 28px;
+            font-family: inherit;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #00a152, 0 10px 20px rgba(0,0,0,0.4);
+            transition: all 0.1s ease;
+            text-shadow: 1px 1px 2px #000;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 0 #00a152, 0 12px 24px rgba(0,0,0,0.4);
+            background: #33eb91;
+        }
+
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #00a152;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .controls-hint {
+            margin-top: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px 25px;
+            border-radius: 10px;
+            color: #ddd;
+            font-size: 14px;
+            font-family: sans-serif;
+            text-align: center;
+            line-height: 1.6;
+        }
+    </style>
+
+    <!-- Inclusion de Three.js pour le rendu 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div class="ui-layer">
+        <div id="hud">
+            <div class="counter-box">VAGUE : <span id="wave-count">0</span></div>
+        </div>
+    </div>
+
+    <!-- Menu Principal -->
+    <div id="main-menu" class="menu-overlay">
+        <h1>BLOCK DASH</h1>
+        <p>Esquivez et survissez aux vagues !</p>
+        <button class="btn" id="start-btn">JOUER</button>
+        <div class="controls-hint">
+            <strong>Contrôles :</strong><br>
+            Flèches / ZQSD : Déplacement<br>
+            ESPACE : Saut (Appuyez 2x pour <strong>Double Jump / Dash</strong>)
+        </div>
+    </div>
+
+    <!-- Écran Game Over -->
+    <div id="game-over-menu" class="menu-overlay hidden">
+        <h1 style="color: #ff1744; text-shadow: 4px 4px #800000;">ÉLIMINÉ !</h1>
+        <p>Vagues survécues : <span id="final-score">0</span></p>
+        <button class="btn" id="restart-btn">REJOUER</button>
+    </div>
+
+    <script>
+        // --- CONFIGURATION DU JEU ---
+        const ARENA_WIDTH = 14;
+        const ARENA_LENGTH = 30;
+        const PLAYER_SPEED = 0.18;
+        const JUMP_FORCE = 0.22;
+        const GRAVITY = 0.01;
+        const DASH_FORCE = 0.4;
+
+        let scene, camera, renderer;
+        let player, playerVelocityY = 0, isGrounded = true, canDoubleJump = false;
+        let keys = {};
+        let gameRunning = false;
+        let waveCount = 0;
+        let walls = [];
+        let speedMultiplier = 1;
+
+        // --- INITIALISATION THREE.JS ---
+        function init() {
+            const container = document.getElementById('canvas-container');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a0826);
+            scene.fog = new THREE.FogExp2(0x1a0826, 0.015);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 10, 18);
+            camera.lookAt(0, 0, -5);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Lumières
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(10, 20, 10);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 1024;
+            dirLight.shadow.mapSize.height = 1024;
+            scene.add(dirLight);
+
+            // Plateforme (Arène)
+            createArena();
+
+            // Joueur
+            createPlayer();
+
+            // Événements
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('keydown', (e) => onKeyDown(e));
+            document.addEventListener('keyup', (e) => keys[e.code] = false);
+
+            document.getElementById('start-btn').addEventListener('click', startGame);
+            document.getElementById('restart-btn').addEventListener('click', startGame);
+
+            animate();
+        }
+
+        // --- CRÉATION DU DÉCOR ET DU JOUEUR ---
+        function createArena() {
+            // Sol Laser / Élimination (Sous le sol)
+            const laserGeo = new THREE.PlaneGeometry(100, 100);
+            const laserMat = new THREE.MeshBasicMaterial({ color: 0xff0055, side: THREE.DoubleSide });
+            const laser = new THREE.Mesh(laserGeo, laserMat);
+            laser.rotation.x = Math.PI / 2;
+            laser.position.y = -2;
+            scene.add(laser);
+
+            // Plateforme Principale
+            const floorGeo = new THREE.BoxGeometry(ARENA_WIDTH, 1, ARENA_LENGTH);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x220044, roughness: 0.3 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.position.set(0, -0.5, 0);
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Bordures lumineuses de l'arène
+            const borderGeo = new THREE.BoxGeometry(0.5, 1.2, ARENA_LENGTH);
+            const borderMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00aaaa });
+            
+            const leftBorder = new THREE.Mesh(borderGeo, borderMat);
+            leftBorder.position.set(-ARENA_WIDTH/2 - 0.25, 0, 0);
+            scene.add(leftBorder);
+
+            const rightBorder = new THREE.Mesh(borderGeo, borderMat);
+            rightBorder.position.set(ARENA_WIDTH/2 + 0.25, 0, 0);
+            scene.add(rightBorder);
+        }
+
+        function createPlayer() {
+            const group = new THREE.Group();
+
+            // Corps du personnage
+            const bodyGeo = new THREE.BoxGeometry(1, 1.4, 1);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffcc00 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.7;
+            body.castShadow = true;
+            group.add(body);
+
+            // Yeux
+            const eyeGeo = new THREE.BoxGeometry(0.2, 0.2, 0.1);
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const eye1 = new THREE.Mesh(eyeGeo, eyeMat);
+            eye1.position.set(-0.25, 1, -0.51);
+            const eye2 = new THREE.Mesh(eyeGeo, eyeMat);
+            eye2.position.set(0.25, 1, -0.51);
+            group.add(eye1);
+            group.add(eye2);
+
+            player = group;
+            scene.add(player);
+            resetPlayerPosition();
+        }
+
+        function resetPlayerPosition() {
+            player.position.set(0, 0, 8);
+            playerVelocityY = 0;
+            isGrounded = true;
+            canDoubleJump = false;
+        }
+
+        // --- GESTION DES COMMANDES & CAPACITÉS ---
+        function onKeyDown(e) {
+            keys[e.code] = true;
+
+            if (e.code === 'Space' && gameRunning) {
+                if (isGrounded) {
+                    // Saut simple
+                    playerVelocityY = JUMP_FORCE;
+                    isGrounded = false;
+                    canDoubleJump = true;
+                } else if (canDoubleJump) {
+                    // Double Jump + Dash vers l'avant
+                    playerVelocityY = JUMP_FORCE * 0.9;
+                    player.position.z -= DASH_FORCE; 
+                    canDoubleJump = false;
+                }
+            }
+        }
+
+        // --- GENERATEUR DE MURS (TYPES BLOCK DASH) ---
+        function spawnWall() {
+            waveCount++;
+            document.getElementById('wave-count').innerText = waveCount;
+            speedMultiplier += 0.03; // Accélération progressive
+
+            const wallGroup = new THREE.Group();
+            wallGroup.position.z = -ARENA_LENGTH / 2;
+
+            const wallHeight = 3;
+            const wallType = Math.floor(Math.random() * 4); // 4 types de murs
+
+            const normalMat = new THREE.MeshStandardMaterial({ color: 0x00e676 }); // Vert (Destructible/Normal)
+            const spikeMat = new THREE.MeshStandardMaterial({ color: 0xff1744, emissive: 0x550000 }); // Rouge (Piques)
+
+            if (wallType === 0) {
+                // Type 1 : Mur bas classique (Sauter par-dessus)
+                const geo = new THREE.BoxGeometry(ARENA_WIDTH, 1.2, 1);
+                const mesh = new THREE.Mesh(geo, normalMat);
+                mesh.position.y = 0.6;
+                mesh.castShadow = true;
+                wallGroup.add(mesh);
+            } 
+            else if (wallType === 1) {
+                // Type 2 : Mur avec trous (Passages étroits)
+                const holePos = Math.floor(Math.random() * (ARENA_WIDTH - 2)) - (ARENA_WIDTH/2 - 1);
+                for (let x = -ARENA_WIDTH/2 + 0.5; x < ARENA_WIDTH/2; x += 1.5) {
+                    if (Math.abs(x - holePos) > 1.2) {
+                        const geo = new THREE.BoxGeometry(1.4, wallHeight, 1);
+                        const mesh = new THREE.Mesh(geo, normalMat);
+                        mesh.position.set(x, wallHeight/2, 0);
+                        mesh.castShadow = true;
+                        wallGroup.add(mesh);
+                    }
+                }
+            } 
+            else if (wallType === 2) {
+                // Type 3 : Mur plein avec ligne de PIQUES rouges au sol
+                const geo = new THREE.BoxGeometry(ARENA_WIDTH, wallHeight, 1);
+                const mesh = new THREE.Mesh(geo, normalMat);
+                mesh.position.y = wallHeight/2;
+                wallGroup.add(mesh);
+
+                // Piques au centre
+                const spikeGeo = new THREE.ConeGeometry(0.4, 1.5, 4);
+                for (let x = -ARENA_WIDTH/2 + 1; x < ARENA_WIDTH/2; x += 1.5) {
+                    const spike = new THREE.Mesh(spikeGeo, spikeMat);
+                    spike.position.set(x, 0.75, 0.6);
+                    spike.userData = { isSpike: true };
+                    wallGroup.add(spike);
+                }
+            } 
+            else if (wallType === 3) {
+                // Type 4 : Double barrière (Haute + Basse mélangées)
+                const isLeftHigh = Math.random() > 0.5;
+                const w1 = new THREE.BoxGeometry(ARENA_WIDTH/2, isLeftHigh ? 3 : 1, 1);
+                const m1 = new THREE.Mesh(w1, normalMat);
+                m1.position.set(-ARENA_WIDTH/4, isLeftHigh ? 1.5 : 0.5, 0);
+
+                const w2 = new THREE.BoxGeometry(ARENA_WIDTH/2, isLeftHigh ? 1 : 3, 1);
+                const m2 = new THREE.Mesh(w2, normalMat);
+                m2.position.set(ARENA_WIDTH/4, isLeftHigh ? 0.5 : 1.5, 0);
+
+                wallGroup.add(m1);
+                wallGroup.add(m2);
+            }
+
+            scene.add(wallGroup);
+            walls.push(wallGroup);
+        }
+
+        // --- BOUCLE DU JEU (LOGIQUE & PHYSIQUE) ---
+        function update() {
+            if (!gameRunning) return;
+
+            // Déplacement du joueur
+            if (keys['ArrowLeft'] || keys['KeyA']) player.position.x -= PLAYER_SPEED;
+            if (keys['ArrowRight'] || keys['KeyD']) player.position.x += PLAYER_SPEED;
+            if (keys['ArrowUp'] || keys['KeyW']) player.position.z -= PLAYER_SPEED;
+            if (keys['ArrowDown'] || keys['KeyS']) player.position.z += PLAYER_SPEED;
+
+            // Limites de l'arène
+            const halfWidth = ARENA_WIDTH / 2 - 0.5;
+            player.position.x = Math.max(-halfWidth, Math.min(halfWidth, player.position.x));
+            player.position.z = Math.max(-ARENA_LENGTH/2, Math.min(ARENA_LENGTH/2, player.position.z));
+
+            // Gravité & Saut
+            player.position.y += playerVelocityY;
+            playerVelocityY -= GRAVITY;
+
+            if (player.position.y <= 0) {
+                player.position.y = 0;
+                playerVelocityY = 0;
+                isGrounded = true;
+            }
+
+            // Gestion des vagues / murs
+            const speed = 0.15 * speedMultiplier;
+            for (let i = walls.length - 1; i >= 0; i--) {
+                const wall = walls[i];
+                wall.position.z += speed;
+
+                // Collisions basiques AABB
+                const playerBox = new THREE.Box3().setFromObject(player);
+                
+                wall.children.forEach(child => {
+                    const blockBox = new THREE.Box3().setFromObject(child);
+
+                    if (playerBox.intersectsBox(blockBox)) {
+                        // Si contact avec piques ou poussé hors du terrain = Défaite
+                        if (child.userData.isSpike) {
+                            gameOver();
+                        } else {
+                            // Collision mur physique simple (repousse le joueur)
+                            player.position.z = wall.position.z + 1.2;
+                        }
+                    }
+                });
+
+                // Supprimer le mur s'il sort du terrain
+                if (wall.position.z > ARENA_LENGTH / 2 + 2) {
+                    scene.remove(wall);
+                    walls.splice(i, 1);
+                }
+            }
+
+            // Générer de nouvelles vagues régulièrement
+            if (walls.length === 0 || walls[walls.length - 1].position.z > -5) {
+                spawnWall();
+            }
+
+            // Chute hors du terrain
+            if (player.position.y < -1) {
+                gameOver();
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            update();
+            renderer.render(scene, camera);
+        }
+
+        // --- ÉTATS DU JEU ---
+        function startGame() {
+            // Nettoyage des anciens murs
+            walls.forEach(w => scene.remove(w));
+            walls = [];
+
+            waveCount = 0;
+            speedMultiplier = 1;
+            document.getElementById('wave-count').innerText = "0";
+
+            resetPlayerPosition();
+            gameRunning = true;
+
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('game-over-menu').classList.add('hidden');
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('final-score').innerText = waveCount;
+            document.getElementById('game-over-menu').classList.remove('hidden');
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+  </html>
+  
