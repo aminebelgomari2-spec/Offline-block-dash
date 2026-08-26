@@ -3,201 +3,321 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Stumble Block Dash Mobile</title>
+    <title>Stumble Guys: Block Dash Deluxe</title>
     <style>
-        * { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
-        body { margin: 0; overflow: hidden; background: #0b0813; font-family: 'Impact', 'Arial Black', sans-serif; }
-        #canvas-container { width: 100vw; height: 100vh; }
+        * { touch-action: none; -webkit-user-select: none; user-select: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #080314; font-family: 'Arial Black', sans-serif; }
+        #renderCanvas { width: 100%; height: 100%; display: block; }
 
-        /* UI HUD */
+        /* HUD & UI */
         .hud { position: absolute; top: 15px; left: 15px; z-index: 5; pointer-events: none; }
-        .score-card { background: linear-gradient(135deg, #ff0055, #ff5500); padding: 10px 25px; border-radius: 20px; border: 3px solid #fff; color: white; font-size: 26px; text-shadow: 2px 2px #000; box-shadow: 0 8px 15px rgba(0,0,0,0.5); }
+        .score-box { background: linear-gradient(135deg, #ff0055, #ff5500); border: 3px solid #fff; border-radius: 15px; padding: 8px 20px; color: #fff; font-size: 24px; text-shadow: 2px 2px #000; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
 
-        /* BOUTONS MOBILE TACTILE */
-        .mobile-btn { position: absolute; bottom: 30px; width: 85px; height: 85px; background: rgba(255, 255, 255, 0.2); border: 4px solid #fff; border-radius: 50%; color: #fff; font-size: 20px; display: flex; justify-content: center; align-items: center; text-shadow: 2px 2px #000; box-shadow: 0 5px 15px rgba(0,0,0,0.4); z-index: 5; }
-        .mobile-btn:active { transform: scale(0.9); background: rgba(255, 255, 255, 0.5); }
-        #btn-jump { right: 30px; bottom: 40px; background: #00e676; border-color: #a7ffeb; }
-        #btn-dash { right: 130px; bottom: 30px; background: #ff9100; border-color: #ffe0b2; width: 70px; height: 70px; font-size: 16px; }
+        /* MENUS */
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(8, 3, 20, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; backdrop-filter: blur(8px); }
+        h1 { font-size: 50px; color: #ffea00; text-shadow: 4px 4px 0 #ff0055, 7px 7px 0 #000; margin: 0 0 10px 0; text-align: center; }
+        p { color: #fff; font-size: 16px; margin-bottom: 25px; text-align: center; font-family: sans-serif; }
+        .btn-play { background: linear-gradient(180deg, #00e676, #00a152); border: 3px solid #fff; color: white; font-size: 28px; padding: 12px 50px; border-radius: 40px; cursor: pointer; box-shadow: 0 6px 0 #007038; text-shadow: 2px 2px #000; }
+        .btn-play:active { transform: translateY(4px); box-shadow: 0 2px 0 #007038; }
 
-        /* JOYSTICK VIRTUEL */
-        #joystick-zone { position: absolute; bottom: 30px; left: 30px; width: 130px; height: 130px; background: rgba(255,255,255,0.15); border: 2px dashed rgba(255,255,255,0.4); border-radius: 50%; z-index: 5; }
-        #joystick-knob { position: absolute; top: 35px; left: 35px; width: 60px; height: 60px; background: #ff0055; border: 3px solid #fff; border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        /* CONTRÔLES MOBILES */
+        .touch-btn { position: absolute; width: 75px; height: 75px; background: rgba(255,255,255,0.25); border: 3px solid #fff; border-radius: 50%; color: white; font-size: 16px; display: flex; justify-content: center; align-items: center; text-shadow: 1px 1px 2px #000; z-index: 5; }
+        .touch-btn:active { background: rgba(255,255,255,0.5); transform: scale(0.95); }
+        #btn-jump { right: 25px; bottom: 35px; background: #00e676; border-color: #a7ffeb; }
+        #btn-dash { right: 115px; bottom: 25px; background: #ff9100; border-color: #ffe0b2; width: 65px; height: 65px; font-size: 14px; }
 
-        /* MENUS OVERLAY */
-        .overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(10, 5, 20, 0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 10; backdrop-filter: blur(5px); }
-        .title { font-size: 64px; color: #ffeb3b; text-shadow: 5px 5px 0 #ff0055, 9px 9px 0 #000; margin: 0 0 10px 0; text-align: center; }
-        .subtitle { color: #fff; font-size: 18px; margin-bottom: 30px; text-shadow: 1px 1px #000; font-family: sans-serif; text-align: center; }
-        
-        .play-btn { background: linear-gradient(180deg, #00e676, #00a152); border: 4px solid #fff; color: #fff; padding: 15px 60px; font-size: 32px; border-radius: 50px; cursor: pointer; box-shadow: 0 8px 0 #007038, 0 15px 25px rgba(0,0,0,0.5); text-shadow: 2px 2px #000; }
-        .play-btn:active { transform: translateY(6px); box-shadow: 0 2px 0 #007038; }
+        #joystick-container { position: absolute; bottom: 25px; left: 25px; width: 120px; height: 120px; background: rgba(255,255,255,0.1); border: 2px dashed rgba(255,255,255,0.3); border-radius: 50%; z-index: 5; }
+        #joystick-knob { position: absolute; top: 35px; left: 35px; width: 50px; height: 50px; background: #ff0055; border: 2px solid #fff; border-radius: 50%; }
 
         .hidden { display: none !important; }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Engine Babylon.js -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
 </head>
 <body>
 
-    <div id="canvas-container"></div>
+    <canvas id="renderCanvas"></canvas>
 
     <div class="hud">
-        <div class="score-card">VAGUE <span id="wave-display">0</span></div>
+        <div class="score-box">VAGUE : <span id="wave-count">0</span></div>
     </div>
 
-    <!-- Contrôles Tactiles -->
-    <div id="joystick-zone"><div id="joystick-knob"></div></div>
-    <div class="mobile-btn" id="btn-jump">SAUT</div>
-    <div class="mobile-btn" id="btn-dash">DASH</div>
+    <!-- Interface Mobile -->
+    <div id="joystick-container"><div id="joystick-knob"></div></div>
+    <div class="touch-btn" id="btn-dash">DASH</div>
+    <div class="touch-btn" id="btn-jump">SAUT</div>
 
     <!-- Menu Principal -->
-    <div id="menu-start" class="overlay">
-        <h1 class="title">BLOCK DASH</h1>
-        <p class="subtitle">Survissez aux vagues de murs !<br>Mobile (Tactile) | PC (Flèches / ZQSD + ESPACE)</p>
-        <button class="play-btn" onclick="startGame()">JOUER</button>
+    <div id="start-menu" class="overlay">
+        <h1>BLOCK DASH 3D</h1>
+        <p>Sautez, dashez et évitez les pièges mortels !<br>Mobile : Tactile | PC : Flèches/ZQSD + Espace / Shift</p>
+        <button class="btn-play" onclick="startGame()">JOUER</button>
     </div>
 
-    <!-- Écran Game Over -->
-    <div id="menu-over" class="overlay hidden">
-        <h1 class="title" style="color: #ff1744; text-shadow: 5px 5px 0 #800000, 9px 9px 0 #000;">ÉLIMINÉ !</h1>
-        <p class="subtitle" style="font-size: 24px;">Vagues réussies : <span id="final-wave" style="color: #ffeb3b;">0</span></p>
-        <button class="play-btn" onclick="startGame()">REESSAYER</button>
+    <!-- Menu Game Over -->
+    <div id="over-menu" class="overlay hidden">
+        <h1 style="color: #ff1744; text-shadow: 4px 4px 0 #800000, 7px 7px 0 #000;">ÉLIMINÉ !</h1>
+        <p style="font-size: 22px;">Vagues réussies : <span id="final-score" style="color: #ffea00;">0</span></p>
+        <button class="btn-play" onclick="startGame()">REESSAYER</button>
     </div>
 
     <script>
-        // --- MOTEUR ET PHYSIQUE ---
+        const canvas = document.getElementById("renderCanvas");
+        const engine = new BABYLON.Engine(canvas, true);
+
+        // Constantes Physiques et Terrain
         const ARENA_W = 12, ARENA_L = 26;
-        let scene, camera, renderer, player, playerBody;
-        let isPlaying = false, wave = 0, speed = 0.18;
-        let pVelocityY = 0, gravity = 0.015, jumpPower = 0.28;
+        let scene, player, playerMat;
+        let isPlaying = false, wave = 0, gameSpeed = 0.16;
+        let pVelY = 0, gravity = -0.015, jumpForce = 0.32;
         let canDoubleJump = false, isDashing = false;
         let walls = [];
-        let joystickInput = { x: 0, y: 0 };
+        let inputMove = { x: 0, z: 0 };
+        let keys = {};
 
-        // Clavier PC
-        const keys = {};
-        window.addEventListener('keydown', e => { keys[e.code] = true; if(e.code==='Space') handleJump(); });
-        window.addEventListener('keyup', e => keys[e.code] = false);
+        // Matériaux réutilisables
+        let matFloor, matWall, matBreakable, matSpike, matLaser;
 
-        function init() {
-            const container = document.getElementById('canvas-container');
-            
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0f051d);
-            scene.fog = new THREE.FogExp2(0x0f051d, 0.02);
+        function createScene() {
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color3(0.03, 0.01, 0.08);
 
-            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 11, 16);
-            camera.lookAt(0, 1, -2);
+            // Caméra
+            const camera = new BABYLON.TargetCamera("camera", new BABYLON.Vector3(0, 11, -16), scene);
+            camera.setTarget(new BABYLON.Vector3(0, 1, 3));
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            container.appendChild(renderer.domElement);
+            // Lumières
+            const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+            light.intensity = 0.7;
 
-            // Lumières Néo-Arcade
-            const ambLight = new THREE.AmbientLight(0xffffff, 0.7);
-            scene.add(ambLight);
+            const dirLight = new THREE ? null : new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, 1), scene);
+            dirLight.intensity = 0.5;
 
-            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            dirLight.position.set(10, 20, 5);
-            dirLight.castShadow = true;
-            scene.add(dirLight);
+            // Matériaux
+            matFloor = new BABYLON.StandardMaterial("matFloor", scene);
+            matFloor.diffuseColor = new BABYLON.Color3(0.1, 0.05, 0.2);
+            matFloor.specularColor = new BABYLON.Color3(0.5, 0, 0.5);
 
-            createStage();
-            createPlayer();
-            setupJoystick();
+            matWall = new BABYLON.StandardMaterial("matWall", scene);
+            matWall.diffuseColor = new BABYLON.Color3(0.9, 0, 0.3);
 
-            // Boutons Tactiles
-            document.getElementById('btn-jump').addEventListener('touchstart', (e) => { e.preventDefault(); handleJump(); });
-            document.getElementById('btn-dash').addEventListener('touchstart', (e) => { e.preventDefault(); handleDash(); });
+            matBreakable = new BABYLON.StandardMaterial("matBreak", scene);
+            matBreakable.diffuseColor = new BABYLON.Color3(0, 0.9, 0.4);
+            matBreakable.alpha = 0.8;
 
-            window.addEventListener('resize', onWindowResize);
-            animate();
-        }
+            matSpike = new BABYLON.StandardMaterial("matSpike", scene);
+            matSpike.diffuseColor = new BABYLON.Color3(1, 0.8, 0);
 
-        function createStage() {
-            // Sol laser / élimination mortelle
-            const lavaGeo = new THREE.PlaneGeometry(80, 80);
-            const lavaMat = new THREE.MeshBasicMaterial({ color: 0xff0044 });
-            const lava = new THREE.Mesh(lavaGeo, lavaMat);
-            lava.rotation.x = -Math.PI / 2;
-            lava.position.y = -4;
-            scene.add(lava);
+            matLaser = new BABYLON.StandardMaterial("matLaser", scene);
+            matLaser.diffuseColor = new BABYLON.Color3(1, 0, 0.2);
+            matLaser.emissiveColor = new BABYLON.Color3(1, 0, 0.2);
 
-            // Plateforme Block Dash
-            const floorGeo = new THREE.BoxGeometry(ARENA_W, 1, ARENA_L);
-            const floorMat = new THREE.MeshStandardMaterial({ color: 0x1e1538, roughness: 0.2, metalness: 0.5 });
-            const floor = new THREE.Mesh(floorGeo, floorMat);
-            floor.position.set(0, -0.5, 0);
-            floor.receiveShadow = true;
-            scene.add(floor);
+            // Arène / Sol
+            const floor = BABYLON.MeshBuilder.CreateBox("floor", { width: ARENA_W, height: 1, depth: ARENA_L }, scene);
+            floor.position = new BABYLON.Vector3(0, -0.5, 0);
+            floor.material = matFloor;
 
-            // Quadrillage stylisé
-            const grid = new THREE.GridHelper(ARENA_L, ARENA_L/2, 0x00ffff, 0xff0055);
-            grid.position.y = 0.01;
-            grid.scale.set(ARENA_W/ARENA_L, 1, 1);
-            scene.add(grid);
-        }
+            // Sol Mortel Laser en dessous
+            const lava = BABYLON.MeshBuilder.CreatePlane("lava", { size: 60 }, scene);
+            lava.position.y = -3;
+            lava.rotation.x = Math.PI / 2;
+            lava.material = matLaser;
 
-        function createPlayer() {
-            player = new THREE.Group();
-            
-            // Corps style personnage Stumble
-            const geo = new THREE.CylinderGeometry(0.5, 0.5, 1.2, 16);
-            const mat = new THREE.MeshStandardMaterial({ color: 0x00e676, roughness: 0.3 });
-            playerBody = new THREE.Mesh(geo, mat);
-            playerBody.position.y = 0.6;
-            playerBody.castShadow = true;
-            player.add(playerBody);
+            // Joueur (Personnage)
+            player = BABYLON.MeshBuilder.CreateCapsule("player", { radius: 0.45, height: 1.3 }, scene);
+            playerMat = new BABYLON.StandardMaterial("pMat", scene);
+            playerMat.diffuseColor = new BABYLON.Color3(0, 0.9, 0.4);
+            player.material = playerMat;
 
-            // Lunettes / Visière stylisée
-            const visorGeo = new THREE.BoxGeometry(0.6, 0.25, 0.3);
-            const visorMat = new THREE.MeshStandardMaterial({ color: 0x111, roughness: 0.1 });
-            const visor = new THREE.Mesh(visorGeo, visorMat);
-            visor.position.set(0, 0.8, -0.3);
-            player.add(visor);
-
-            scene.add(player);
             resetPlayer();
+
+            // Boucle de rendu principal
+            scene.onBeforeRenderObservable.add(gameLoop);
+
+            return scene;
         }
 
         function resetPlayer() {
-            player.position.set(0, 0, 7);
-            pVelocityY = 0;
+            player.position = new BABYLON.Vector3(0, 0.65, -7);
+            pVelY = 0;
             canDoubleJump = true;
+            isDashing = false;
         }
 
-        function handleJump() {
+        // --- COMMANDES (SAUT / DASH) ---
+        function doJump() {
             if (!isPlaying) return;
-            if (player.position.y <= 0.05) {
-                pVelocityY = jumpPower;
+            if (player.position.y <= 0.66) {
+                pVelY = jumpForce;
                 canDoubleJump = true;
             } else if (canDoubleJump) {
-                // Double Saut avec effet de poussée
-                pVelocityY = jumpPower * 0.85;
+                pVelY = jumpForce * 0.85; // Double Saut fluide
                 canDoubleJump = false;
-                handleDash();
+                doDash();
             }
         }
 
-        function handleDash() {
+        function doDash() {
             if (!isPlaying || isDashing) return;
             isDashing = true;
-            const dashDistance = 2.5;
             
-            // Impulsion vers l'avant
-            player.position.z -= dashDistance;
-            playerBody.rotation.x = -Math.PI / 4; // Inclinaison corps
+            // Impulsion d'esquive vers l'avant
+            player.position.z += 2.2;
             
-            setTimeout(() => {
-                playerBody.rotation.x = 0;
-                isDashing = false;
-            }, 200);
+            setTimeout(() => { isDashing = false; }, 250);
         }
 
-        // --- CONTROLES TACTILES (JOYSTICK) ---
-        function setupJoystick() {
-            const zone = document.getElementById('joystick-zone');
+        // --- GENERATEUR DE MURS DYNAMIQUES ---
+        function spawnWall() {
+            wave++;
+            document.getElementById('wave-count').innerText = wave;
+            gameSpeed += 0.003; // Augmentation progressive maîtrisée
+
+            const wallGroup = new BABYLON.TransformNode("wallGroup", scene);
+            wallGroup.position.z = ARENA_L / 2 + 2;
+
+            const type = Math.floor(Math.random() * 4);
+
+            if (type === 0) {
+                // Mur bas facile à sauter avec piques au-dessus
+                const base = BABYLON.MeshBuilder.CreateBox("w", { width: ARENA_W, height: 1.2, depth: 1 }, scene);
+                base.position.y = 0.6;
+                base.material = matWall;
+                base.parent = wallGroup;
+
+                for(let x = -ARENA_W/2 + 1; x < ARENA_W/2; x += 1.5) {
+                    const spike = BABYLON.MeshBuilder.CreateCylinder("s", { diameterTop: 0, diameterBottom: 0.6, height: 1 }, scene);
+                    spike.position.set(x, 1.7, 0);
+                    spike.material = matSpike;
+                    spike.isFatal = true;
+                    spike.parent = wallGroup;
+                }
+            } 
+            else if (type === 1) {
+                // Mur haut avec un passage étroit (porte)
+                const holeX = (Math.random() * (ARENA_W - 4)) - (ARENA_W/2 - 2);
+                for(let x = -ARENA_W/2 + 0.5; x < ARENA_W/2; x += 1) {
+                    if (Math.abs(x - holeX) > 1.4) {
+                        const block = BABYLON.MeshBuilder.CreateBox("b", { width: 1, height: 4, depth: 1 }, scene);
+                        block.position.set(x, 2, 0);
+                        block.material = matWall;
+                        block.isFatal = true;
+                        block.parent = wallGroup;
+                    }
+                }
+            }
+            else if (type === 2) {
+                // Mur vert destructible (Il FAUT Dasher dedans !)
+                const breakable = BABYLON.MeshBuilder.CreateBox("br", { width: ARENA_W, height: 3, depth: 1 }, scene);
+                breakable.position.y = 1.5;
+                breakable.material = matBreakable;
+                breakable.isBreakable = true;
+                breakable.parent = wallGroup;
+            }
+            else if (type === 3) {
+                // Mur à double niveau décalé
+                const left = BABYLON.MeshBuilder.CreateBox("l", { width: ARENA_W/2, height: 1.2, depth: 1 }, scene);
+                left.position.set(-ARENA_W/4, 0.6, 0);
+                left.material = matWall;
+                left.parent = wallGroup;
+
+                const right = BABYLON.MeshBuilder.CreateBox("r", { width: ARENA_W/2, height: 3.5, depth: 1 }, scene);
+                right.position.set(ARENA_W/4, 1.75, 0);
+                right.material = matWall;
+                right.isFatal = true;
+                right.parent = wallGroup;
+            }
+
+            walls.push(wallGroup);
+        }
+
+        // --- BOUCLE DU JEU ET PHYSIQUE ---
+        function gameLoop() {
+            if (!isPlaying) return;
+
+            // Déplacement Joueur (Clavier + Tactile)
+            let mx = inputMove.x;
+            let mz = inputMove.z;
+
+            if (keys['ArrowLeft'] || keys['KeyA']) mx = -1;
+            if (keys['ArrowRight'] || keys['KeyD']) mx = 1;
+            if (keys['ArrowUp'] || keys['KeyW']) mz = 1;
+            if (keys['ArrowDown'] || keys['KeyS']) mz = -1;
+
+            player.position.x += mx * 0.18;
+            player.position.z += mz * 0.18;
+
+            // Limites de l'arène
+            const limitX = ARENA_W / 2 - 0.5;
+            player.position.x = Math.max(-limitX, Math.min(limitX, player.position.x));
+
+            // Gravité et Saut
+            player.position.y += pVelY;
+            pVelY += gravity;
+
+            if (player.position.y <= 0.65) {
+                player.position.y = 0.65;
+                pVelY = 0;
+            }
+
+            // Gestion des Murs et Collisions
+            for (let i = walls.length - 1; i >= 0; i--) {
+                const wallGroup = walls[i];
+                wallGroup.position.z -= gameSpeed;
+
+                const children = wallGroup.getChildMeshes();
+                for (let child of children) {
+                    if (player.intersectsMesh(child, false)) {
+                        if (child.isFatal) {
+                            gameOver(); // Mort instantanée
+                            return;
+                        } else if (child.isBreakable) {
+                            if (isDashing) {
+                                // Mur brisé grâce au Dash !
+                                child.dispose();
+                            } else {
+                                // Poussé en arrière sinon
+                                player.position.z = wallGroup.position.z - 1.2;
+                            }
+                        } else {
+                            // Mur normal : repousse le joueur
+                            player.position.z = wallGroup.position.z - 1.2;
+                        }
+                    }
+                }
+
+                // Supprimer le mur quand il a traversé l'arène
+                if (wallGroup.position.z < -ARENA_L / 2 - 2) {
+                    wallGroup.dispose();
+                    walls.splice(i, 1);
+                }
+            }
+
+            // Faire réapparaître des murs
+            if (walls.length === 0 || walls[walls.length - 1].position.z < ARENA_L / 4) {
+                spawnWall();
+            }
+
+            // Conditions de défaite (Chute ou poussé hors du terrain arrière)
+            if (player.position.y < -1.5 || player.position.z < -ARENA_L / 2 - 0.5) {
+                gameOver();
+            }
+        }
+
+        // --- CONTROLES MOBILES (JOYSTICK & TOUCH) ---
+        function setupControls() {
+            window.addEventListener('keydown', e => {
+                keys[e.code] = true;
+                if (e.code === 'Space') doJump();
+                if (e.code === 'ShiftLeft' || e.code === 'KeyE') doDash();
+            });
+            window.addEventListener('keyup', e => keys[e.code] = false);
+
+            document.getElementById('btn-jump').addEventListener('touchstart', e => { e.preventDefault(); doJump(); });
+            document.getElementById('btn-dash').addEventListener('touchstart', e => { e.preventDefault(); doDash(); });
+
+            // Joystick Logic
+            const zone = document.getElementById('joystick-container');
             const knob = document.getElementById('joystick-knob');
             let active = false, startX, startY;
 
@@ -212,189 +332,52 @@
                 const touch = e.touches[0];
                 const dx = touch.clientX - startX;
                 const dy = touch.clientY - startY;
-                const dist = Math.min(Math.hypot(dx, dy), 40);
+                const dist = Math.min(Math.hypot(dx, dy), 35);
                 const angle = Math.atan2(dy, dx);
 
-                const knX = Math.cos(angle) * dist;
-                const knY = Math.sin(angle) * dist;
+                const kX = Math.cos(angle) * dist;
+                const kY = Math.sin(angle) * dist;
 
-                knob.style.transform = `translate(${knX}px, ${knY}px)`;
-                joystickInput.x = knX / 40;
-                joystickInput.y = knY / 40;
+                knob.style.transform = `translate(${kX}px, ${kY}px)`;
+                inputMove.x = kX / 35;
+                inputMove.z = -kY / 35;
             });
 
-            const resetJoy = () => {
+            const stopJoy = () => {
                 active = false;
                 knob.style.transform = `translate(0px, 0px)`;
-                joystickInput = { x: 0, y: 0 };
+                inputMove = { x: 0, z: 0 };
             };
-            window.addEventListener('touchend', resetJoy);
-            window.addEventListener('touchcancel', resetJoy);
+            window.addEventListener('touchend', stopJoy);
+            window.addEventListener('touchcancel', stopJoy);
         }
 
-        // --- MURS BLOCK DASH ---
-        function spawnWallPattern() {
-            wave++;
-            document.getElementById('wave-display').innerText = wave;
-            speed += 0.005; // Accélération progressive
-
-            const wallGroup = new THREE.Group();
-            wallGroup.position.z = -ARENA_L / 2 - 2;
-
-            const matWall = new THREE.MeshStandardMaterial({ color: 0xff0055, roughness: 0.2 });
-            const matSpike = new THREE.MeshStandardMaterial({ color: 0xffea00, metalness: 0.8 });
-            const matBreakable = new THREE.MeshStandardMaterial({ color: 0x00e676, roughness: 0.8 });
-
-            const pattern = Math.floor(Math.random() * 4);
-
-            if (pattern === 0) {
-                // Mur bas avec ligne de PIQUES mortelles au milieu
-                const w = new THREE.Mesh(new THREE.BoxGeometry(ARENA_W, 1.5, 1), matWall);
-                w.position.y = 0.75;
-                wallGroup.add(w);
-
-                // Piques jaunes
-                for(let x = -ARENA_W/2 + 1; x < ARENA_W/2; x += 1.2) {
-                    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.35, 1, 4), matSpike);
-                    spike.position.set(x, 1.8, 0);
-                    spike.userData = { fatal: true };
-                    wallGroup.add(spike);
-                }
-            } 
-            else if (pattern === 1) {
-                // Mur haut avec passage étroit (Trou aléatoire)
-                const holeX = (Math.random() * (ARENA_W - 3)) - (ARENA_W/2 - 1.5);
-                for(let x = -ARENA_W/2 + 0.5; x < ARENA_W/2; x += 1) {
-                    if (Math.abs(x - holeX) > 1.2) {
-                        const block = new THREE.Mesh(new THREE.BoxGeometry(1, 4, 1), matWall);
-                        block.position.set(x, 2, 0);
-                        block.userData = { fatal: true };
-                        wallGroup.add(block);
-                    }
-                }
-            }
-            else if (pattern === 2) {
-                // Mur destructible vert (Sauter ou Dasher à travers)
-                const w = new THREE.Mesh(new THREE.BoxGeometry(ARENA_W, 3, 1), matBreakable);
-                w.position.y = 1.5;
-                w.userData = { breakable: true };
-                wallGroup.add(w);
-            }
-            else if (pattern === 3) {
-                // Double barrière décalée
-                const b1 = new THREE.Mesh(new THREE.BoxGeometry(ARENA_W/2, 1.2, 1), matWall);
-                b1.position.set(-ARENA_W/4, 0.6, 0);
-                const b2 = new THREE.Mesh(new THREE.Mesh(new THREE.BoxGeometry(ARENA_W/2, 4, 1), matWall));
-                b2.position.set(ARENA_W/4, 2, 0);
-                b2.userData = { fatal: true };
-                wallGroup.add(b1);
-                wallGroup.add(b2);
-            }
-
-            scene.add(wallGroup);
-            walls.push(wallGroup);
-        }
-
-        // --- BOUCLE DE JEU & COLLISIONS ---
-        function update() {
-            if (!isPlaying) return;
-
-            // Déplacements (Clavier + Joystick)
-            let moveX = joystickInput.x;
-            let moveZ = joystickInput.y;
-
-            if (keys['ArrowLeft'] || keys['KeyA']) moveX = -1;
-            if (keys['ArrowRight'] || keys['KeyD']) moveX = 1;
-            if (keys['ArrowUp'] || keys['KeyW']) moveZ = -1;
-            if (keys['ArrowDown'] || keys['KeyS']) moveZ = 1;
-
-            player.position.x += moveX * 0.2;
-            player.position.z += moveZ * 0.2;
-
-            // Limites de terrain
-            const limitX = ARENA_W / 2 - 0.5;
-            player.position.x = Math.max(-limitX, Math.min(limitX, player.position.x));
-
-            // Physique de Saut
-            player.position.y += pVelocityY;
-            pVelocityY -= gravity;
-
-            if (player.position.y <= 0) {
-                player.position.y = 0;
-                pVelocityY = 0;
-            }
-
-            // Gestion Murs & Collisions
-            const playerBox = new THREE.Box3().setFromObject(player);
-
-            for (let i = walls.length - 1; i >= 0; i--) {
-                const wall = walls[i];
-                wall.position.z += speed;
-
-                wall.children.forEach(child => {
-                    const box = new THREE.Box3().setFromObject(child);
-                    if (playerBox.intersectsBox(box)) {
-                        if (child.userData.fatal) {
-                            gameOver(); // Mort instantanée
-                        } else if (child.userData.breakable && isDashing) {
-                            // Détruire le bloc vert si on dash dedans
-                            scene.remove(wall);
-                            walls.splice(i, 1);
-                        } else {
-                            // Mur physique : repousse le joueur vers l'arrière
-                            player.position.z = wall.position.z + 1.2;
-                        }
-                    }
-                });
-
-                if (wall.position.z > ARENA_L / 2 + 2) {
-                    scene.remove(wall);
-                    walls.splice(i, 1);
-                }
-            }
-
-            // Spawn automatique de murs
-            if (walls.length === 0 || walls[walls.length - 1].position.z > -4) {
-                spawnWallPattern();
-            }
-
-            // MORS MORTELLES : Chute ou poussé hors du terrain arrière
-            if (player.position.y < -1.5 || player.position.z > ARENA_L / 2) {
-                gameOver();
-            }
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            update();
-            renderer.render(scene, camera);
-        }
-
+        // --- ÉTATS DU JEU ---
         function startGame() {
-            walls.forEach(w => scene.remove(w));
+            walls.forEach(w => w.dispose());
             walls = [];
             wave = 0;
-            speed = 0.18;
+            gameSpeed = 0.16;
             resetPlayer();
-            
-            document.getElementById('menu-start').classList.add('hidden');
-            document.getElementById('menu-over').classList.add('hidden');
+
+            document.getElementById('start-menu').classList.add('hidden');
+            document.getElementById('over-menu').classList.add('hidden');
             isPlaying = true;
         }
 
         function gameOver() {
             isPlaying = false;
-            document.getElementById('final-wave').innerText = wave;
-            document.getElementById('menu-over').classList.remove('hidden');
+            document.getElementById('final-score').innerText = wave;
+            document.getElementById('over-menu').classList.remove('hidden');
         }
 
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
+        window.addEventListener("DOMContentLoaded", () => {
+            createScene();
+            setupControls();
+            engine.runRenderLoop(() => scene.render());
+        });
 
-        window.onload = init;
+        window.addEventListener("resize", () => engine.resize());
     </script>
 </body>
 </html>
